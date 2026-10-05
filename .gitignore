@@ -1,2 +1,10 @@
+# the player's own files and build output: never committed
 apk/
+*.apk
 portlibs32/
+build/
+*.nsp
+*.nro
+*.elf
+*.build
+runtime.zip
