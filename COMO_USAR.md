@@ -1,66 +1,83 @@
-# zenonia_nx — port do ZENONIA 1 (primeira versão, ainda não testada)
+# zenonia2_nx — port do ZENONIA 2 (primeira versão, ainda não compilada nem testada)
 
-Estes arquivos são a parte do **jogo** no método android32. O `runtime/` (android32),
-o `portlibs32/` (mesa32) e o libnx32 continuam sendo os que você já montou.
+Estes arquivos substituem os do Zenonia 1 **dentro da ramificação `zenonia2`**.
+O `runtime/` (android32), o `portlibs32/` (mesa32) e o libnx32 continuam os mesmos.
 
-## 1. Copiar para o Codespace
+## 1. Conferir que você está na ramificação certa
 
-1. No painel de arquivos do Codespace, arraste o conteúdo desta pasta (`source/`, `tools/`,
-   `launcher/`, `Makefile`, `build.sh`, `.gitignore`) para dentro de `Zenonia_nx/`.
-   Se perguntar se deve substituir o `.gitignore`, pode substituir.
+```bash
+cd /workspaces/Zenonia_nx
+git branch
+```
+
+Deve aparecer `* zenonia2`. Se aparecer `* main`, rode `git checkout zenonia2`.
+
+## 2. Colocar os arquivos novos por cima
+
+1. Arraste o `zenonia2_nx_port.zip` para o painel de arquivos, na raiz de `Zenonia_nx`.
 2. No terminal:
 
 ```bash
 cd /workspaces/Zenonia_nx
+unzip -o zenonia2_nx_port.zip
+cp -r zenonia2_nx/. .
+rm -rf zenonia2_nx zenonia2_nx_port.zip
 chmod +x build.sh launcher/build.sh
 ```
 
-## 2. Compilar o jogo (32 bits)
+(O `cp -r ... .` copia também o `.gitignore`, que é um arquivo oculto.)
+
+## 3. Limpar o que sobrou do Zenonia 1 e compilar
 
 ```bash
+rm -rf build launcher/build *.nsp *.build launcher/*.nro
 ./build.sh
 ```
 
-Se compilar, aparecem `zenonia_nx.nsp` e `zenonia_nx.build` na pasta do projeto.
-Se der erro, copie as **últimas 40 linhas** do terminal e me mande.
-
-## 3. Compilar o launcher (o .nro)
+Se compilar, aparecem `zenonia2_nx.nsp` e `zenonia2_nx.build`. Depois:
 
 ```bash
 launcher/build.sh
 ```
 
-O arquivo `zenonia_nx.nro` aparece dentro de `launcher/`. Baixe pelo painel de arquivos
-(botão direito → Download).
+O `launcher/zenonia2_nx.nro` é o arquivo que vai para o Switch (botão direito → Download).
+Se algum comando falhar, copie as **últimas 40 linhas** do terminal e me mande.
 
-## 4. No Switch
+## 4. Salvar o progresso
 
-1. Crie `sd:/switch/zenonia_nx/` e coloque nela o `zenonia_nx.nro` e o APK do Zenonia
+```bash
+git add .
+git commit -m "Zenonia 2: primeira versão"
+git push -u origin zenonia2
+```
+
+## 5. No Switch
+
+1. Crie `sd:/switch/zenonia2_nx/` e coloque nela o `zenonia2_nx.nro` e o APK do Zenonia 2
    (qualquer nome terminado em `.apk`).
-2. No sphaira: Homebrew → ZENONIA → Install Forwarder.
-3. Abra o ícone novo na tela HOME. A primeira abertura reinicia e desempacota a biblioteca
-   do jogo (uma vez, com barra de progresso).
-4. Se algo der errado, pegue `debug.log` e `crash.log` na pasta `sd:/switch/zenonia_nx/`
-   e me mande.
+2. No sphaira: Homebrew → ZENONIA 2 → Install Forwarder.
+3. Abra o ícone novo na tela HOME. A primeira abertura desempacota a biblioteca do jogo.
+4. Se algo der errado, pegue `debug.log` e `crash.log` na pasta `sd:/switch/zenonia2_nx/`.
 
-## Controles (primeira versão)
+Ele convive com o Zenonia 1 (outra pasta, outro ícone, outro ID de programa: 0x0100000000001021).
 
-| Controle | Ação no jogo |
+## Controles
+
+| Controle | Ação |
 | --- | --- |
-| D-pad ou analógico esquerdo | andar (4 direções) |
+| D-pad ou analógico esquerdo | andar (os 4 sentidos; dois juntos fazem diagonal) |
 | A | confirmar / atacar |
-| B | menu do jogo / cancelar |
+| B ou + | menu do jogo |
+| − ou L | voltar / cancelar |
 | X | mapa |
-| Y | troca de slot / pular |
-| L / R | abas do menu (esquerda / direita) |
+| Y ou R | troca de habilidade |
 | ZL, ZR, clique dos analógicos | os 4 slots rápidos |
-| Menos | "toque qualquer lugar" (passar textos) |
-| Toque na tela | também passa textos |
+| Toque na tela | toque do jogo (menus, NPCs, botões da tela) |
 
 ## O que mais provavelmente precisa de ajuste
 
-- Direções trocadas (herói anda para o lado errado): constantes `DIR_*` em `source/zen_input.c`.
-- Toque nos menus: só o toque simples (passar texto) foi ligado; menus por toque não.
-- Digitar texto (se o jogo pedir nome): ainda não existe.
-- Som: volume e mapeamento dos 51 sons foram deduzidos do código Java; ouvir tudo ajuda a confirmar.
-- Velocidade do jogo: ela segue o `SetSpeed` do próprio jogo (25 quadros por segundo no início).
+- O jogo desenha os próprios botões na tela e muitos menus dependem de **toque**: no modo portátil
+  funciona direto; no dock não há como tocar (me avise se isso atrapalhar e eu penso num cursor).
+- O código do botão de mapa (X) e os de L/R são deduzidos do código Java, não foram vistos funcionando.
+- A velocidade do jogo vem do próprio jogo (30 quadros por segundo até ele pedir outra).
+- Se aparecerem telas de loja, login ou termos coreanos, me diga: são do APK e dá para contornar.

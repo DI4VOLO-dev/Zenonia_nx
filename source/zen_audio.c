@@ -1,20 +1,23 @@
-/* zen_audio.c -- ZENONIA's sound: what NexusSound / AudioClip / MediaPlayer did,
- * on the runtime's audout pump.
+/* zen_audio.c -- ZENONIA 2's sound: what NexusSound did (a SoundPool, and two
+ * MediaPlayers), on the runtime's audout pump.
  *
- * The engine asks Natives.OnSoundPlay(id, volume, loop). The Java picked a
- * raw resource by the id (ids 0-41 as they are, 100 and up minus 58: the 51
- * WAV files of res/raw, in zen_sounds.h), and played it: a looping one was the
- * background music (one at a time, a new one replaced it), the rest were
- * effects on a few channels (a repeated effect restarted its own clip).
- * Natives.OnStopSound stopped everything.
+ * The engine asks Natives.OnSoundPlay(id, volume, loop). In the Java:
+ *   volume 0      the sound is off: with loop it also stops the music; no sound
+ *   id 1..15      NexusSound.playSFXSound: a SoundPool of 3 streams over the 15
+ *                 clips the game loaded at start-up (13 is played as 12)
+ *   any other id  getAudioResource(id) -> a raw resource, then playSound(res,
+ *                 loop): a looping one is the music (one at a time, a new one
+ *                 replaces it), a non-looping one the "one clip at a time"
+ *                 player (a new one replaces it)
+ * Natives.OnStopSound / stopAndroidSound stop everything.
+ * zen_sounds.h has the tables, read from the game's own code and resources.
  *
- * All 51 files are 16-bit mono PCM at 22050 Hz, 7.9 MB in all: they are
- * decoded once at start-up from the APK (the game's thread, zen_apk.c), and
- * the mixer thread only reads them. It mixes up to 12 voices to 48 kHz stereo
- * with linear interpolation. The Java's volume argument went through an
- * integer divide by 10 before MediaPlayer.setVolume (which clamps at 1), so
- * any volume of 10 or more was full and the smaller ones silent: here zero is
- * silent and the rest full, times config.ini's [audio] volume. MIT.
+ * All 74 files are 16-bit mono PCM at 22050 Hz: they are decoded once at
+ * start-up from the APK (the game's thread, zen_apk.c), and the mixer thread
+ * only reads them. It mixes 5 voices (music, one-clip, 3 effects) to 48 kHz
+ * stereo with linear interpolation. The volume the engine passes went through
+ * NexusSound.setVolume: v / 10, clamped at 1 by MediaPlayer, so 10 or more is
+ * full; here it is v / 10 as well, times config.ini's [audio] volume. MIT.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,8 +30,11 @@
 #include "zen_config.h"
 #include "zen_sounds.h"
 
-#define NVOICES 12
-#define BGM_VOICE 0
+#define V_BGM 0
+#define V_ONE 1
+#define V_SFX0 2
+#define NSFX 3
+#define NVOICES (V_SFX0 + NSFX)
 
 typedef struct {
   int16_t *pcm; /* mono, malloc'd; NULL: not decoded */
@@ -39,15 +45,16 @@ typedef struct {
   const Clip *clip; /* NULL: free */
   uint64_t pos;     /* 32.32 fixed point, in the clip's frames */
   int loop;
-  int id;
+  int gain; /* 0..256 */
 } Voice;
 
 static Clip g_clip[ZEN_NWAVS];
 static Voice g_voice[NVOICES];
 static Mutex g_lock;
 static volatile unsigned long g_mixes;
-static int g_volume = 256; /* 0..256 */
+static int g_volume = 256; /* config.ini: 0..256 */
 static int g_up;
+static int g_next_sfx;
 
 unsigned long zen_audio_mixes(void) { return g_mixes; }
 
@@ -129,7 +136,7 @@ static void fill(int16_t *out, int frames, void *ud) {
       uint32_t i1 = i0 + 1 < c->frames ? i0 + 1 : (vo->loop ? 0 : i0);
       int32_t f = (int32_t)((vo->pos >> 16) & 0xffff);
       int32_t s = c->pcm[i0] + (((c->pcm[i1] - c->pcm[i0]) * f) >> 16);
-      acc[i] += s;
+      acc[i] += (s * vo->gain) >> 8;
       vo->pos += step;
     }
   }
@@ -173,37 +180,60 @@ int zen_audio_init(void) {
   return 0;
 }
 
+static int wav_of_audio_id(int id) {
+  for (int i = 0; i < ZEN_NAUDIO; i++)
+    if (k_zen_audio[i].id == id)
+      return k_zen_audio[i].wav;
+  return -1;
+}
+
+static void start(int voice, int wav, int loop, int gain) {
+  Voice *vo = &g_voice[voice];
+  vo->clip = &g_clip[wav];
+  vo->pos = 0;
+  vo->loop = loop;
+  vo->gain = gain;
+}
+
 void zen_audio_play(int id, int volume, int loop) {
   if (!g_up)
     return;
-  int idx = id >= 100 ? id - 58 : id;
-  if (idx < 0 || idx >= ZEN_NWAVS || !g_clip[idx].pcm) {
+  if (volume <= 0) { /* NexusSound.setVolume(0): sound off; a looping request also stops the music */
+    if (loop) {
+      mutexLock(&g_lock);
+      g_voice[V_BGM].clip = NULL;
+      mutexUnlock(&g_lock);
+    }
+    return;
+  }
+  int gain = volume >= 10 ? 256 : volume * 256 / 10;
+  int wav;
+  if (id >= 1 && id <= 15) {
+    wav = k_zen_sfx[id == 13 ? 12 : id];
+  } else {
+    wav = wav_of_audio_id(id);
+  }
+  if (wav < 0 || wav >= ZEN_NWAVS || !g_clip[wav].pcm) {
     debugPrintf("[audio] play(%d): no such sound\n", id);
     return;
   }
-  if (volume <= 0)
-    return;
   mutexLock(&g_lock);
-  Voice *vo = NULL;
-  if (loop) {
-    vo = &g_voice[BGM_VOICE]; /* the music: a new one replaces it */
-  } else {
-    for (int v = 1; v < NVOICES; v++) {
-      if (g_voice[v].clip && g_voice[v].id == id) { /* the same effect again: restarts its clip */
-        vo = &g_voice[v];
+  if (id >= 1 && id <= 15) {
+    /* the SoundPool: 3 streams, the oldest gives way */
+    int v = V_SFX0 + g_next_sfx;
+    for (int k = 0; k < NSFX; k++) {
+      if (!g_voice[V_SFX0 + k].clip) {
+        v = V_SFX0 + k;
         break;
       }
     }
-    for (int v = 1; !vo && v < NVOICES; v++)
-      if (!g_voice[v].clip)
-        vo = &g_voice[v];
-    if (!vo) /* all busy: the oldest-started effect gives way (voice 1 is as good as any) */
-      vo = &g_voice[1];
+    g_next_sfx = (g_next_sfx + 1) % NSFX;
+    start(v, wav, 0, gain);
+  } else if (loop) {
+    start(V_BGM, wav, 1, gain);
+  } else {
+    start(V_ONE, wav, 0, gain);
   }
-  vo->clip = &g_clip[idx];
-  vo->pos = 0;
-  vo->loop = loop;
-  vo->id = id;
   mutexUnlock(&g_lock);
 }
 

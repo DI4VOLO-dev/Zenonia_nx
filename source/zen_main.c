@@ -1,8 +1,8 @@
-/* zen_main.c -- ZENONIA's part of the boot sequence, and the frame loop.
+/* zen_main.c -- ZENONIA 2's part of the boot sequence, and the frame loop.
  *
  * The runtime's main.c (runtime/source/main.c) does what every port does: the
  * log, config.ini, the clocks, HOME / sleep, an update from the launcher NRO,
- * the APK (any *.apk that is ZENONIA's, game.apk first, else the newest), the
+ * the APK (any *.apk that is ZENONIA 2's, game.apk first, else the newest), the
  * self-tests. Here is what is the game's:
  *   port_load  the library and classes.txt from the APK (the setup plan
  *              below), the APK's assets and sounds, the library loaded;
@@ -13,10 +13,11 @@
  *   surfaceCreated      NativeInit        (the EGL context is current by then)
  *   surfaceChanged      NativeResize(w, h) -- the surface's own size: the
  *                       engine lays its picture out for any size
- *   every frame         setTouchEvent's pending event -> handleCletEvent,
- *                       NativeRender, then the swap; the thread slept to the
- *                       period Natives.SetSpeed set (1000 / (n + 2) ms)
- *   onPause / onResume  NativePauseClet / NativeResumeClet, sounds stopped
+ *   every frame         one queued input event -> handleCletEvent(type, p1,
+ *                       p2, pointer), NativeRender, then the swap; the thread
+ *                       slept to the period Natives.SetSpeed set (1000 / n ms)
+ *   onPause             sounds stopped, NativePauseClet, then the events 99
+ *                       and 9900 (handleCletEvent); onResume the reverse
  *   onDestroy           NativeDestroyClet
  * One thread does it all (the GL thread's job); the sound mixer has its own
  * (zen_audio.c). MIT.
@@ -40,6 +41,7 @@
 #include "util.h"
 #include "watchdog.h"
 #include "zen.h"
+#include "zen_config.h"
 
 /* ------------------------------------------------------------ the setup
  * libgameDSO.so and classes.txt from the APK when they are missing or it has
@@ -49,7 +51,7 @@ static const char *const k_libs[] = {ZEN_LIB};
 const RtSetupPlan port_setup_plan = {
     .libs = k_libs,
     .nlibs = 1,
-    .apk_requirement = "This port needs ZENONIA " ZEN_VERSION " (" PORT_PACKAGE ", armeabi-v7a):\n"
+    .apk_requirement = "This port needs ZENONIA 2 " ZEN_VERSION " (" PORT_PACKAGE ", armeabi-v7a):\n"
                        "put the APK of that version in the game folder.",
     .libs_p0 = 0,
     .libs_p1 = 900,
@@ -58,7 +60,7 @@ const RtSetupPlan port_setup_plan = {
 };
 
 const char *port_apk_help(void) {
-  return "Copy the APK of your own ZENONIA (" PORT_PACKAGE " " ZEN_VERSION ")\n"
+  return "Copy the APK of your own ZENONIA 2 (" PORT_PACKAGE " " ZEN_VERSION ")\n"
          "there, under any name ending in .apk: the game's library, pictures,\n"
          "data and sounds come from it.";
 }
@@ -83,7 +85,7 @@ static void bind_natives(void) {
   do {                                                                 \
     var = (void *)zen_native(name);                                    \
     if (!var)                                                          \
-      fatal_error("The game library has no native \"" name "\": is it ZENONIA " ZEN_VERSION "?"); \
+      fatal_error("The game library has no native \"" name "\": is it ZENONIA 2 " ZEN_VERSION "?"); \
   } while (0)
   BIND(n_init_ref, "InitializeJNIGlobalRef");
   BIND(n_init, "NativeInit");
@@ -100,7 +102,7 @@ int port_load(const char *apk) {
   dcr_setup_from_apk(apk);
   if (zen_apk_init(apk) != 0)
     fatal_error("Could not read the game's files from %s.\n\n"
-                "Is it the APK of ZENONIA (it must hold assets/ and res/)?", apk);
+                "Is it the APK of ZENONIA 2 (it must hold assets/ and res/)?", apk);
   if (zen_load_module() != 0)
     fatal_error("Could not load the game library from %s.\n\n"
                 "It is unpacked from the APK (" PORT_ABI_DIR ") on launch: delete\n" ZEN_LIB
@@ -116,6 +118,8 @@ void port_focus_lost(void) {
     zen_audio_stop_all(); /* NexusGLActivity.onPause */
     zen_audio_pause(1);
     n_pause(env(), cls());
+    zen_clet_event(99, 0, 0, 0);
+    zen_clet_event(9900, 0, 0, 0);
   }
 }
 
@@ -123,6 +127,7 @@ void port_focus_gained(void) {
   if (n_resume) {
     zen_audio_pause(0);
     n_resume(env(), cls());
+    n_init_ref(env(), cls()); /* NexusGLActivity.onResume does this every time */
   }
 }
 
@@ -193,6 +198,8 @@ static void pace(u64 frame_start) {
 /* System.loadLibrary: the constructors (none here), then the game. */
 void port_run(void) {
   zen_run_constructors();
+  if (!zen_config()->touch_buttons)
+    zen_hide_touch_ui(); /* the game's on-screen stick and attack button */
   zen_java_init();
   dcr_watchdog_start();
   rt_watchdog_add_counter("audio mixes", audio_mixes);
@@ -245,6 +252,8 @@ void port_run(void) {
   exit_guard_start();
   zen_audio_stop_all();
   n_pause(env(), cls());
+  zen_clet_event(99, 0, 0, 0);
+  zen_clet_event(9900, 0, 0, 0);
   n_destroy(env(), cls());
   debugPrintf("[boot] the game has closed after %llu frames\n", (unsigned long long)g_frames);
   log_flush_ring();

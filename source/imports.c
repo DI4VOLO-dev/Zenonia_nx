@@ -21,7 +21,6 @@ extern const char sym_b___aeabi_memcpy[] __asm__("b___aeabi_memcpy");
 extern const char sym_b___aeabi_memmove[] __asm__("b___aeabi_memmove");
 extern const char sym_b___aeabi_memset[] __asm__("b___aeabi_memset");
 extern const char sym_b___android_log_print[] __asm__("b___android_log_print");
-extern const char sym_b___assert2[] __asm__("b___assert2");
 extern const char sym_b___cxa_atexit[] __asm__("b___cxa_atexit");
 extern const char sym_b___cxa_finalize[] __asm__("b___cxa_finalize");
 extern const char sym_b___cxa_guard_acquire[] __asm__("b___cxa_guard_acquire");
@@ -30,6 +29,7 @@ extern const char sym_b___gnu_Unwind_Find_exidx[] __asm__("b___gnu_Unwind_Find_e
 extern const char sym_b___memcpy_chk[] __asm__("b___memcpy_chk");
 extern const char sym_b___memmove_chk[] __asm__("b___memmove_chk");
 extern const char sym_b___memset_chk[] __asm__("b___memset_chk");
+extern const char sym_b___register_atfork[] __asm__("b___register_atfork");
 extern const char sym_b___sF[] __asm__("b___sF");
 extern const char sym_b___stack_chk_fail[] __asm__("b___stack_chk_fail");
 extern const char sym_b___stack_chk_guard[] __asm__("b___stack_chk_guard");
@@ -38,6 +38,8 @@ extern const char sym_b___strchr_chk[] __asm__("b___strchr_chk");
 extern const char sym_b___strcpy_chk[] __asm__("b___strcpy_chk");
 extern const char sym_b___strlen_chk[] __asm__("b___strlen_chk");
 extern const char sym_b___strncat_chk[] __asm__("b___strncat_chk");
+extern const char sym_b___strncpy_chk[] __asm__("b___strncpy_chk");
+extern const char sym_b___strncpy_chk2[] __asm__("b___strncpy_chk2");
 extern const char sym_b___vsprintf_chk[] __asm__("b___vsprintf_chk");
 extern const char sym_b_abort[] __asm__("b_abort");
 extern const char sym_b_access[] __asm__("b_access");
@@ -73,7 +75,6 @@ extern const char sym_strcmp[] __asm__("strcmp");
 extern const char sym_strcpy[] __asm__("strcpy");
 extern const char sym_strlen[] __asm__("strlen");
 extern const char sym_strncmp[] __asm__("strncmp");
-extern const char sym_strncpy[] __asm__("strncpy");
 extern const char sym_strstr[] __asm__("strstr");
 
 DynLibFunction dcr_imports[] = {
@@ -83,7 +84,6 @@ DynLibFunction dcr_imports[] = {
     {"__aeabi_memmove", (uintptr_t)sym_b___aeabi_memmove},
     {"__aeabi_memset", (uintptr_t)sym_b___aeabi_memset},
     {"__android_log_print", (uintptr_t)sym_b___android_log_print},
-    {"__assert2", (uintptr_t)sym_b___assert2},
     {"__cxa_atexit", (uintptr_t)sym_b___cxa_atexit},
     {"__cxa_finalize", (uintptr_t)sym_b___cxa_finalize},
     {"__cxa_guard_acquire", (uintptr_t)sym_b___cxa_guard_acquire},
@@ -93,6 +93,7 @@ DynLibFunction dcr_imports[] = {
     {"__memcpy_chk", (uintptr_t)sym_b___memcpy_chk},
     {"__memmove_chk", (uintptr_t)sym_b___memmove_chk},
     {"__memset_chk", (uintptr_t)sym_b___memset_chk},
+    {"__register_atfork", (uintptr_t)sym_b___register_atfork},
     {"__sF", (uintptr_t)sym_b___sF},
     {"__stack_chk_fail", (uintptr_t)sym_b___stack_chk_fail},
     {"__stack_chk_guard", (uintptr_t)sym_b___stack_chk_guard},
@@ -101,6 +102,8 @@ DynLibFunction dcr_imports[] = {
     {"__strcpy_chk", (uintptr_t)sym_b___strcpy_chk},
     {"__strlen_chk", (uintptr_t)sym_b___strlen_chk},
     {"__strncat_chk", (uintptr_t)sym_b___strncat_chk},
+    {"__strncpy_chk", (uintptr_t)sym_b___strncpy_chk},
+    {"__strncpy_chk2", (uintptr_t)sym_b___strncpy_chk2},
     {"__vsprintf_chk", (uintptr_t)sym_b___vsprintf_chk},
     {"abort", (uintptr_t)sym_b_abort},
     {"access", (uintptr_t)sym_b_access},
@@ -134,7 +137,6 @@ DynLibFunction dcr_imports[] = {
     {"strcpy", (uintptr_t)sym_strcpy},
     {"strlen", (uintptr_t)sym_strlen},
     {"strncmp", (uintptr_t)sym_strncmp},
-    {"strncpy", (uintptr_t)sym_strncpy},
     {"strstr", (uintptr_t)sym_strstr},
     {"time", (uintptr_t)sym_b_time},
     {"unlink", (uintptr_t)sym_b_unlink},

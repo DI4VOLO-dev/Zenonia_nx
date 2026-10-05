@@ -65,3 +65,19 @@ int b___vsprintf_chk(char *dst, int flags, size_t dst_len, const char *fmt, va_l
     CHK_FAIL("__vsprintf_chk", n + 1, dst_len);
   return n;
 }
+
+/* ZENONIA 2 also imports these two (no zen_ port needed them before) */
+char *b___strncpy_chk(char *dst, const char *src, size_t n, size_t dst_len) {
+  if (n > dst_len)
+    CHK_FAIL("__strncpy_chk", n, dst_len);
+  return strncpy(dst, src, n);
+}
+
+/* bionic's pthread_atfork hook: this process never forks */
+int b___register_atfork(void (*prepare)(void), void (*parent)(void), void (*child)(void), void *dso) {
+  (void)prepare;
+  (void)parent;
+  (void)child;
+  (void)dso;
+  return 0;
+}

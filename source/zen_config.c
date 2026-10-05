@@ -19,8 +19,8 @@ static const CfgOpt k_opts[] = {
     {"display", "smooth", "true",
      "Smooth (bilinear) scaling of the game's picture. false: sharp pixels.", CFG_BOOL, NULL, &g_cfg.smooth, 0, 0, 0, 0},
     {"display", "touch_buttons", "false",
-     "Draw the game's own on-screen D-pad and buttons (made for a phone's touch\n"
-     "# screen). Off: the controller does it all.",
+     "Draw the game's own on-screen analog stick and attack button (made for a phone's\n"
+     "# touch screen). Off: the controller does it all; the screen still works for the menus.",
      CFG_BOOL, NULL, &g_cfg.touch_buttons, 0, 0, 0, 0},
     {"audio", "volume", "100", "Sound volume, 0 to 100.", CFG_INT, NULL, &g_cfg.volume, 0, 100, 0, 0},
     CFG_ROW_SWAP_AB("Swap A and B (true: A is the menu / cancel button, B attacks).", &g_cfg.swap_ab),

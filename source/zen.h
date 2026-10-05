@@ -30,8 +30,12 @@ void zen_gfx_present(void);
 
 /* zen_input.c: the controller and the touch screen, as the Java views' events */
 void zen_input_init(void);
-void zen_input_poll(void);   /* the pad's changes -> Natives.setInputEvent */
-void zen_input_frame(void);  /* before each frame: the last event -> handleCletEvent */
+void zen_input_poll(void);   /* the pad and the touch screen -> the event queue */
+void zen_input_frame(void);  /* before each frame: one queued event -> handleCletEvent */
+void zen_clet_event(int type, int p1, int p2, int pid); /* an event at once (the pause events) */
+
+/* zen_patch.c: the touch controls the game draws itself */
+int zen_hide_touch_ui(void);
 
 /* zen_audio.c: MediaPlayer's job, on audout */
 int zen_audio_init(void);
@@ -42,7 +46,7 @@ unsigned long zen_audio_mixes(void);
 
 /* zen_java.c: the Java side the engine calls */
 void zen_java_init(void);
-int zen_fps(void);        /* the frame rate the engine asked for (SetSpeed) */
+int zen_fps(void);        /* the frame rate the engine asked for (SetSpeed(n): n) */
 int zen_smooth(void);     /* config.ini [display] smooth, as getGLOptionLinear */
 
 #endif /* ZEN_H */

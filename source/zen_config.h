@@ -4,7 +4,7 @@
 
 typedef struct {
   int smooth;        /* [display] smooth: the game's "linear" texture filter (getGLOptionLinear) */
-  int touch_buttons; /* [display] touch_buttons: the game's own on-screen D-pad and buttons */
+  int touch_buttons; /* [display] touch_buttons: the game's own on-screen analog stick and attack button */
   int volume;        /* [audio] volume, 0-100 */
   int swap_ab;       /* [controls] swap_a_b */
 } ZenConfig;

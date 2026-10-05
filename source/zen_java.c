@@ -1,4 +1,4 @@
-/* zen_java.c -- the game's Java, as the engine sees it.
+/* zen_java.c -- ZENONIA 2's Java, as the engine sees it.
  *
  * libgameDSO.so never looks an object up: everything it calls on the Java side
  * is a static method of one class, com.gamevil.nexus2.Natives (the names are
@@ -36,11 +36,12 @@
 #include "rt_cfg.h"
 #include "util.h"
 #include "zen.h"
+#include "config.h"
 #include "zen_config.h"
 
 #define NAT ZEN_NATIVES
 
-static int g_fps = 25; /* NexusGLThread's constructor: SetFPS(25) */
+static int g_fps = 30; /* until the game says: the thread did not sleep at all */
 int zen_fps(void) { return g_fps; }
 int zen_smooth(void) { return zen_config()->smooth; }
 
@@ -142,7 +143,7 @@ static jvalue h_sound_stop(JObj *self, const jvalue *a, const JMethod *m) {
 
 /* ------------------------------------------------------------------ the rest */
 static jvalue h_set_speed(JObj *self, const jvalue *a, const JMethod *m) {
-  int fps = a[0].i + 2; /* Natives.SetSpeed: NexusGLThread.SetFPS(n + 2) */
+  int fps = a[0].i; /* Natives.SetSpeed: NexusGLThread.SetFPS(n): a period of 1000 / n ms */
   if (fps < 5)
     fps = 5;
   if (fps > 60)
@@ -158,6 +159,26 @@ static jvalue h_finish(JObj *self, const jvalue *a, const JMethod *m) {
   return jv_none();
 }
 static jvalue h_smooth(JObj *self, const jvalue *a, const JMethod *m) { return jv_i(zen_smooth()); }
+/* Natives.getLocaleID: 1 Korean, 3 Japanese, 4 Chinese, 5 French, 2 everything else (English) */
+static jvalue h_locale(JObj *self, const jvalue *a, const JMethod *m) { return jv_i(2); }
+/* NexusGLActivity.version: the manifest's versionName */
+static jvalue h_version(JObj *self, const jvalue *a, const JMethod *m) { return jv_l(jni_str(ZEN_VERSION)); }
+
+/* Natives.saveFile(name, bytes): Context.openFileOutput, in the app's files folder */
+static jvalue h_save_file(JObj *self, const jvalue *a, const JMethod *m) {
+  char path[DCR_PATH_MAX];
+  local_path(jni_utf(a[0].l), path, sizeof path);
+  JObj *arr = a[1].l;
+  FILE *f = fopen(path, "wb");
+  if (!f) {
+    debugPrintf("[java] saveFile(%s): cannot open\n", path);
+    return jv_none();
+  }
+  if (arr && arr->a.len > 0 && fwrite(arr->a.data, 1, (size_t)arr->a.len, f) != (size_t)arr->a.len)
+    debugPrintf("[java] saveFile(%s): short write\n", path);
+  fclose(f);
+  return jv_none();
+}
 static jvalue h_no_net(JObj *self, const jvalue *a, const JMethod *m) { return jv_i(0); }
 static jvalue h_model(JObj *self, const jvalue *a, const JMethod *m) { return jv_l(bytes("Switch", 6)); }
 static jvalue h_phone_number(JObj *self, const jvalue *a, const JMethod *m) {
@@ -194,6 +215,7 @@ const JMethodDef jni_method_defs[] = {
     {NAT, "isAssetExist", NULL, h_is_asset_exist},
     {NAT, "isFileExist", NULL, h_is_file_exist},
     {NAT, "loadFile", NULL, h_load_file},
+    {NAT, "saveFile", NULL, h_save_file},
     {NAT, "getAbsolueFilePath", NULL, h_files_dir},
     {NAT, "OnSoundPlay", NULL, h_sound_play},
     {NAT, "playAndroidSound", NULL, h_sound_play},
@@ -203,18 +225,23 @@ const JMethodDef jni_method_defs[] = {
     {NAT, "finishApp", NULL, h_finish},
     {NAT, "getGLOptionLinear", NULL, h_smooth},
     {NAT, "isNetAvailable", NULL, h_no_net},
+    {NAT, "getLocaleID", NULL, h_locale},
+    {NAT, "getVersion", NULL, h_version},
     {NAT, "getPhoneModel", NULL, h_model},
     {NAT, "getPhoneNumber", NULL, h_phone_number},
     /* the phone's vibrator and Views */
     D("OnVibrate"), D("vibrateAndroid"), D("OnUIStatusChange"), D("changeUIStatus"), D("OnMessage"),
     D("OnEvent"), D("saveGLOptionLinear"), D("showLoadingDialog"), D("hideLoadingDialog"),
     D("showTitleComponent"), D("hideTitleComponent"), D("showReplyMoveComponent"), D("hideReplyMoveComponent"),
-    D("blinkSButton"), D("showMylSButton"), D("NexusSetMaxLengthTextInput"), D("NetErrorDialog"),
-    D("NetErrorDialogException"),
+    D("showAboutComponent"), D("hideAboutComponent"), D("showHelpComponent"), D("hideHelpComponent"),
+    D("showMenuComponent"), D("hideMenuComponent"), D("showMenuItemComponent"), D("hideMenuItemComponent"),
+    D("showPurchaseComponent"), D("hidePurchaseComponent"), D("openPurchasePopup"),
+    D("blinkSButton"), D("showMylSButton"), D("NexusSetMaxLengthTextInput"), D("NexusSetMaxLengthNumberInput"),
+    D("NetErrorDialog"), D("NetErrorDialogException"), D("printErrorLog"), D("GWSwapBuffers"),
     /* identity the engine may ask for */
-    D("getPlayerNameByte"), D("getPlayerNumberByte"), D("getVersion"), D("clearPlayerName"), D("getLanguage"),
-    D("getLocaleID"), D("getGPoint"),
-    /* the store, the ad network, the web, the server sockets and the tracker: not here */
+    D("getPlayerName"), D("getPlayerNameByte"), D("getPlayerNumberByte"), D("clearPlayerName"), D("getLanguage"),
+    D("getGPoint"),
+    /* the stores (Korean and Google), the ad network, the web, the server sockets and the tracker: not here */
     D("requestIAP"), D("startPurchase"), D("openPurchaseSuccess"), D("setPurchaseChange"),
     D("openStoreWithProductId"), D("openUrl"), D("setTapjoyReady"), D("trackPageViewDispatch"),
     D("trackEventDispatch"), D("getInetHostAddress"), D("netConnect"), D("netSocket"), D("netBillcomSocketConnect"),
@@ -223,7 +250,7 @@ const JMethodDef jni_method_defs[] = {
 };
 
 const JFieldDef jni_field_defs[] = {
-    {"android/os/Build$VERSION", "SDK_INT", NULL, 19, NULL}, /* the manifest's targetSdkVersion */
+    {"android/os/Build$VERSION", "SDK_INT", NULL, 23, NULL}, /* the manifest's targetSdkVersion */
     {NULL, NULL, NULL, 0, NULL},
 };
 const char *const jni_class_supers[][2] = {{NULL, NULL}};
