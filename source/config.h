@@ -1,9 +1,9 @@
 /* config.h -- the ZENONIA wrapper's own constants.
  *
- * ZENONIA 2 (com.gamevil.zenonia2.global 1.0.3, versionCode 103), armeabi-v7a:
- * Gamevil's own C++ engine ("Nexus", the one of ZENONIA 1), one native library,
- * OpenGL ES 1.x (23 gl calls), a small Java side that only forwards input. The settings the android32 runtime reads are in
- * port_config.h. MIT.
+ * ZENONIA 3 (com.gamevil.zenonia3.global.skt 1.0.3, versionCode 103), armeabi-v7a:
+ * Gamevil's own C++ engine ("Nexus", the one of ZENONIA 1 and 2), one native
+ * library, OpenGL ES 1.x (23 gl calls), a small Java side that only forwards
+ * input. The settings the android32 runtime reads are in port_config.h. MIT.
  */
 #ifndef ZEN_CONFIG_H
 #define ZEN_CONFIG_H

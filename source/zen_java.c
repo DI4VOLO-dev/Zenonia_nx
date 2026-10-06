@@ -1,4 +1,4 @@
-/* zen_java.c -- ZENONIA 2's Java, as the engine sees it.
+/* zen_java.c -- ZENONIA 3's Java, as the engine sees it.
  *
  * libgameDSO.so never looks an object up: everything it calls on the Java side
  * is a static method of one class, com.gamevil.nexus2.Natives (the names are
@@ -241,7 +241,7 @@ const JMethodDef jni_method_defs[] = {
     /* identity the engine may ask for */
     D("getPlayerName"), D("getPlayerNameByte"), D("getPlayerNumberByte"), D("clearPlayerName"), D("getLanguage"),
     D("getGPoint"),
-    /* the stores (Korean and Google), the ad network, the web, the server sockets and the tracker: not here */
+    /* the stores (Korean carrier and Google), the ad network, the web, the server sockets and the tracker: not here */
     D("requestIAP"), D("startPurchase"), D("openPurchaseSuccess"), D("setPurchaseChange"),
     D("openStoreWithProductId"), D("openUrl"), D("setTapjoyReady"), D("trackPageViewDispatch"),
     D("trackEventDispatch"), D("getInetHostAddress"), D("netConnect"), D("netSocket"), D("netBillcomSocketConnect"),
@@ -250,7 +250,7 @@ const JMethodDef jni_method_defs[] = {
 };
 
 const JFieldDef jni_field_defs[] = {
-    {"android/os/Build$VERSION", "SDK_INT", NULL, 23, NULL}, /* the manifest's targetSdkVersion */
+    {"android/os/Build$VERSION", "SDK_INT", NULL, 24, NULL}, /* the manifest's targetSdkVersion */
     {NULL, NULL, NULL, 0, NULL},
 };
 const char *const jni_class_supers[][2] = {{NULL, NULL}};

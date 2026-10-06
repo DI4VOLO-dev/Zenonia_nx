@@ -1,6 +1,6 @@
 /* zen_patch.c -- the touch-screen controls the game draws itself.
  *
- * ZENONIA 2 builds its on-screen pad natively (not as Java views): a
+ * ZENONIA 2 and 3 build their on-screen pad natively (not as Java views): a
  * GVUIPlayerController (InitialPlayerPadSet) adds exactly two objects, a
  * GVUIDirectionPad (the analog stick) and a GVUIBatterButton (the attack
  * button), draws them (GVUIPlayerController::Draw, GVUIController::Draw) and

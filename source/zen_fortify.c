@@ -66,7 +66,7 @@ int b___vsprintf_chk(char *dst, int flags, size_t dst_len, const char *fmt, va_l
   return n;
 }
 
-/* ZENONIA 2 also imports these two (no zen_ port needed them before) */
+/* ZENONIA 2 imports these two (ZENONIA 3 only the second) */
 char *b___strncpy_chk(char *dst, const char *src, size_t n, size_t dst_len) {
   if (n > dst_len)
     CHK_FAIL("__strncpy_chk", n, dst_len);

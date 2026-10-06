@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build zenonia2_nx.nsp in the AArch32 toolchain container: the runtime's
+# Build zenonia3_nx.nsp in the AArch32 toolchain container: the runtime's
 # docker_build.sh (arguments go to make: ./build.sh clean, DCR_GL_MESA=0).
 # libnx32 is found next to this folder (../libnx32/prefix and friends), or
 # where DCR_LIBNX32 says.

@@ -1,8 +1,8 @@
-/* zen_main.c -- ZENONIA 2's part of the boot sequence, and the frame loop.
+/* zen_main.c -- ZENONIA 3's part of the boot sequence, and the frame loop.
  *
  * The runtime's main.c (runtime/source/main.c) does what every port does: the
  * log, config.ini, the clocks, HOME / sleep, an update from the launcher NRO,
- * the APK (any *.apk that is ZENONIA 2's, game.apk first, else the newest), the
+ * the APK (any *.apk that is ZENONIA 3's, game.apk first, else the newest), the
  * self-tests. Here is what is the game's:
  *   port_load  the library and classes.txt from the APK (the setup plan
  *              below), the APK's assets and sounds, the library loaded;
@@ -51,7 +51,7 @@ static const char *const k_libs[] = {ZEN_LIB};
 const RtSetupPlan port_setup_plan = {
     .libs = k_libs,
     .nlibs = 1,
-    .apk_requirement = "This port needs ZENONIA 2 " ZEN_VERSION " (" PORT_PACKAGE ", armeabi-v7a):\n"
+    .apk_requirement = "This port needs ZENONIA 3 " ZEN_VERSION " (" PORT_PACKAGE ", armeabi-v7a):\n"
                        "put the APK of that version in the game folder.",
     .libs_p0 = 0,
     .libs_p1 = 900,
@@ -60,7 +60,7 @@ const RtSetupPlan port_setup_plan = {
 };
 
 const char *port_apk_help(void) {
-  return "Copy the APK of your own ZENONIA 2 (" PORT_PACKAGE " " ZEN_VERSION ")\n"
+  return "Copy the APK of your own ZENONIA 3 (" PORT_PACKAGE " " ZEN_VERSION ")\n"
          "there, under any name ending in .apk: the game's library, pictures,\n"
          "data and sounds come from it.";
 }
@@ -85,7 +85,7 @@ static void bind_natives(void) {
   do {                                                                 \
     var = (void *)zen_native(name);                                    \
     if (!var)                                                          \
-      fatal_error("The game library has no native \"" name "\": is it ZENONIA 2 " ZEN_VERSION "?"); \
+      fatal_error("The game library has no native \"" name "\": is it ZENONIA 3 " ZEN_VERSION "?"); \
   } while (0)
   BIND(n_init_ref, "InitializeJNIGlobalRef");
   BIND(n_init, "NativeInit");
@@ -102,7 +102,7 @@ int port_load(const char *apk) {
   dcr_setup_from_apk(apk);
   if (zen_apk_init(apk) != 0)
     fatal_error("Could not read the game's files from %s.\n\n"
-                "Is it the APK of ZENONIA 2 (it must hold assets/ and res/)?", apk);
+                "Is it the APK of ZENONIA 3 (it must hold assets/ and res/)?", apk);
   if (zen_load_module() != 0)
     fatal_error("Could not load the game library from %s.\n\n"
                 "It is unpacked from the APK (" PORT_ABI_DIR ") on launch: delete\n" ZEN_LIB

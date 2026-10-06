@@ -1,4 +1,4 @@
-/* zen_input.c -- the controller and the touch screen, as ZENONIA 2's Java
+/* zen_input.c -- the controller and the touch screen, as ZENONIA 2 and 3's Java
  * gave them to the engine.
  *
  * There is no setInputEvent in this version: every input is an event that
