@@ -5,7 +5,7 @@
 #---------------------------------------------------------------------------------
 APP_TITLE    := ZENONIA 3
 APP_AUTHOR   := Gamevil/DI4VOLO
-APP_VERSION  := 1.0.0
+APP_VERSION  := 1.0.1
 TARGET       := zenonia3_nx
 PORT_PAYLOAD := zenonia3_nx
 LAUNCHER_SOURCES :=
