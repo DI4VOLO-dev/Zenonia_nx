@@ -92,11 +92,17 @@ static int g_dir; /* the direction held now (a DIR_ code), 0 none */
 static int g_touch_down;
 
 void zen_input_poll(void) {
-  float sticks[4] = {0, 0, 0, 0}, s1[4];
+  float sticks[4] = {0, 0, 0, 0}, s1[4] = {0, 0, 0, 0};
   u64 buttons = 0;
   for (int i = 0; i < 2; i++) {
     padUpdate(&g_pad[i]);
     buttons |= rt_pad_read(&g_pad[i], i == 0 ? sticks : s1);
+  }
+  /* The Joy-Cons on the console (handheld) are the second slot, and their left
+   * stick used to be dropped: it counts too, whichever is pushed further wins. */
+  if (fabsf(s1[0]) + fabsf(s1[1]) > fabsf(sticks[0]) + fabsf(sticks[1])) {
+    sticks[0] = s1[0];
+    sticks[1] = s1[1];
   }
   if (zen_config()->swap_ab) {
     u64 a = buttons & HidNpadButton_A, b = buttons & HidNpadButton_B;
