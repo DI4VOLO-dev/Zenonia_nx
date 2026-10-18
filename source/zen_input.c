@@ -18,7 +18,17 @@
  *   35  '#'       skill / slot swap           (A key, BUTTON_X)
  *   17  '*'       map                         (STAR; Q, W, E, BUTTON_SELECT)
  *   49 51 55 57   the quick slots, '1' '3' '7' '9' (the number keys: 48 + digit)
- * The directions are separate keys, so two held at once are a diagonal.
+ *
+ * The engine keeps ONE key, not a set of them (CGsInputKey, read off the
+ * library): a press replaces whatever key was held, and ANY release -- of any
+ * key -- clears it (CMvApp::EvKeyRelease calls SetReleaseKey(false) without
+ * looking at which key went up); the player walks in four directions from
+ * that one key (CMvPlayer::OnKeyPress). So the pad must be turned into one
+ * held key at a time, and when something else takes the slot (the attack
+ * button's press and release) the direction has to be pressed again, or the
+ * hero stops while the stick is still tilted. zen_input_poll does that from
+ * a model of the slot: what the engine holds after the events already
+ * delivered and those still queued.
  * The queue is dropped into one event per frame like the Java's (a press and
  * its release arrive in two frames), but two when it has backed up. MIT.
  */
@@ -83,7 +93,11 @@ static void enqueue(int type, int p1, int p2) {
 }
 
 /* an event now, outside the queue (the pause events) */
+static int g_eng; /* the engine's one key after the events delivered so far (0: none) */
+
 void zen_clet_event(int type, int p1, int p2, int pid) {
+  if (type == 99 || type == 9900)
+    g_eng = 0; /* the pause events: the game lets go of its keys */
   if (g_handle_clet)
     g_handle_clet(env(), cls(), type, p1, p2, pid);
 }
@@ -115,18 +129,79 @@ static Btn g_btns[] = {
     {HidNpadButton_Minus, -8, 0},   {HidNpadButton_L, -8, 0},       {HidNpadButton_R, 35, 0},
 };
 
-static int g_dir[4]; /* held: up, down, left, right */
-static const int k_dir_code[4] = {K_UP, K_DOWN, K_LEFT, K_RIGHT};
+static int g_want; /* the direction the pad asked for at the last poll (0, or a K_ code) */
+
+/* what the engine's one key will be once everything queued is delivered */
+static int predicted_slot(void) {
+  int slot = g_eng;
+  for (int i = 0; i < g_qn; i++) {
+    const Ev *e = &g_q[(g_qhead + i) % QCAP];
+    if (e->type == ZEV_KEY_DOWN)
+      slot = e->p1;
+    else if (e->type == ZEV_KEY_UP)
+      slot = 0;
+  }
+  return slot;
+}
+
+/* the D-pad: one direction; the one already wanted stays while it is held */
+static int dpad_dir(u64 b) {
+  int up = (b & HidNpadButton_Up) != 0, down = (b & HidNpadButton_Down) != 0;
+  int left = (b & HidNpadButton_Left) != 0, right = (b & HidNpadButton_Right) != 0;
+  if ((g_want == K_UP && up) || (g_want == K_DOWN && down) || (g_want == K_LEFT && left) || (g_want == K_RIGHT && right))
+    return g_want;
+  if (up)
+    return K_UP;
+  if (down)
+    return K_DOWN;
+  if (left)
+    return K_LEFT;
+  if (right)
+    return K_RIGHT;
+  return 0;
+}
+
+/* the left stick as one of four directions, with hysteresis: it takes more to
+ * start (0.50) than to keep (0.30), and a direction only gives way to the
+ * other axis when that one clearly leads, so a thumb resting near a diagonal
+ * does not flicker between two keys */
+static int stick_dir(float x, float y) {
+  static int cur;
+  float ax = fabsf(x), ay = fabsf(y);
+  float m = ax > ay ? ax : ay;
+  if (m < (cur ? 0.30f : 0.50f)) {
+    cur = 0;
+    return 0;
+  }
+  int horiz = ax >= ay;
+  int cand = horiz ? (x < 0 ? K_LEFT : K_RIGHT) : (y > 0 ? K_UP : K_DOWN);
+  if (cur && cand != cur) {
+    int cur_h = cur == K_LEFT || cur == K_RIGHT;
+    if (cur_h != horiz) { /* the other axis: only when it clearly leads */
+      float cur_mag = cur_h ? ax : ay, cand_mag = horiz ? ax : ay;
+      if (cand_mag < cur_mag * 1.3f + 0.05f)
+        return cur;
+    }
+  }
+  cur = cand;
+  return cand;
+}
 
 static int g_touch_down;
 static int g_touch_x = -1, g_touch_y = -1;
 
 void zen_input_poll(void) {
-  float sticks[4] = {0, 0, 0, 0}, s1[4];
+  float sticks[4] = {0, 0, 0, 0}, s1[4] = {0, 0, 0, 0};
   u64 buttons = 0;
   for (int i = 0; i < 2; i++) {
     padUpdate(&g_pad[i]);
     buttons |= rt_pad_read(&g_pad[i], i == 0 ? sticks : s1);
+  }
+  /* The Joy-Cons on the console (handheld) are the second slot, and their left
+   * stick used to be dropped: it counts too, whichever is pushed further wins. */
+  if (fabsf(s1[0]) + fabsf(s1[1]) > fabsf(sticks[0]) + fabsf(sticks[1])) {
+    sticks[0] = s1[0];
+    sticks[1] = s1[1];
   }
   if (zen_config()->swap_ab) {
     u64 a = buttons & HidNpadButton_A, b = buttons & HidNpadButton_B;
@@ -140,23 +215,25 @@ void zen_input_poll(void) {
     g_btns[i].down = down;
     key(down, g_btns[i].code);
   }
-  /* the directions: the D-pad and the left stick, each axis on its own (two
-   * axes at once are a diagonal, as two keys held would be) */
-  int want[4];
-  want[0] = (buttons & HidNpadButton_Up) || sticks[1] > 0.45f;
-  want[1] = (buttons & HidNpadButton_Down) || sticks[1] < -0.45f;
-  want[2] = (buttons & HidNpadButton_Left) || sticks[0] < -0.45f;
-  want[3] = (buttons & HidNpadButton_Right) || sticks[0] > 0.45f;
-  if (want[0] && want[1])
-    want[0] = want[1] = 0;
-  if (want[2] && want[3])
-    want[2] = want[3] = 0;
-  for (int d = 0; d < 4; d++) {
-    if (want[d] != g_dir[d]) {
-      g_dir[d] = want[d];
-      key(want[d], k_dir_code[d]);
-    }
+  /* the direction: the D-pad, else the left stick, as ONE held key. A press
+   * replaces the key before it, so a change of direction is just a press; a
+   * release is only sent when the direction key is still the engine's key
+   * (the attack button's press and release leave the slot empty, and then the
+   * direction is pressed again; while another button is held it is left alone). */
+  int other_held = 0;
+  for (unsigned i = 0; i < sizeof g_btns / sizeof g_btns[0]; i++)
+    other_held |= g_btns[i].down;
+  int want = dpad_dir(buttons);
+  if (!want)
+    want = stick_dir(sticks[0], sticks[1]);
+  int slot = predicted_slot();
+  if (want) {
+    if (slot != want && !other_held)
+      key(1, want);
+  } else if (g_want && slot == g_want) {
+    key(0, g_want);
   }
+  g_want = want;
   /* the touch screen: the game's own coordinates */
   if (g_have_touch) {
     HidTouchScreenState ts;
@@ -188,5 +265,9 @@ void zen_input_frame(void) {
     g_qhead = (g_qhead + 1) % QCAP;
     g_qn--;
     zen_clet_event(e.type, e.p1, e.p2, e.pid);
+    if (e.type == ZEV_KEY_DOWN)
+      g_eng = e.p1;
+    else if (e.type == ZEV_KEY_UP)
+      g_eng = 0;
   }
 }
